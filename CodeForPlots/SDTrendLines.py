@@ -30,13 +30,14 @@ def MaskOcean(cube):
     Cube = cube*oceanmask
     return Cube  
 
+##Change region here
+region = 'SSA'
 
 dataseries = ['jules','classic','visit','ssib4', 'LPJ-GUESS-SPITFIRE','GFED4.1s','FireCCI5.1','FireCCILT11']
 d = {}
 for data in dataseries:
-    trend = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+data+'_TrendCube.nc').data
-    print (trend)
-    #trend = MaskRegion(trend, 'SSA')
+    trend = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+data+'_TrendCube.nc')
+    trend = MaskRegion(trend, region=region).data
     #trend = MaskOcean(trend).data
     d[(data)] = [ trend.mean()-2*trend.std(), trend.mean()+2*trend.std() ]
 
@@ -54,7 +55,7 @@ models=('JULES', 'CLASSIC', 'VISIT', 'SSIB4', 'LPJG-SPITFIRE')
 x_pos = np.arange(len(models))+1
 plt.xticks(x_pos, models)
 plt.legend()
-plt.title('2001-2016 Trend, Global')
+plt.title('2001-2016 Trend, SSA')
 plt.show()
 
 
