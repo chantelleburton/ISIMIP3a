@@ -36,8 +36,8 @@ def UpdateTime(cube):
     timeco.points = timeco.points * 30.
     return cube
 
-def ConstrainTime(cube):
-    date = iris.Constraint(time=lambda cell: 2001 <= cell.point.year <= 2016) 
+def ConstrainTime(cube, date1, date2):
+    date = iris.Constraint(time=lambda cell: date1 <= cell.point.year <= date2)
     cube = cube.extract(date)
     return cube
     
@@ -66,48 +66,77 @@ def MakeAnomaly(cube):
 ##Change region here
 region = 'SSA'
 
-##### Load  Data ##### 
+##### Load Model Data ##### 
 folder = '/scratch/cburton/scratch/ISIMIP3a/Data/'
-AllData = ['jules', 'classic','visit', 'ssib4', 'LPJ-GUESS-SPITFIRE','GFED4.1s', 'FireCCI5.1', 'FireCCILT11']
+models = ['jules', 'classic','visit', 'ssib4', 'LPJ-GUESS-SPITFIRE', 'LPJ-GUESS-SIMFIRE']
+obs = ['GFED', 'CCI51', 'CCILT11']
 d = {}
-for Data in AllData:
-    cube = iris.load_cube(folder+Data+'*.nc')
-    if Data == 'LPJ-GUESS-SPITFIRE' or Data == 'LPJ-GUESS-SIMFIRE':
-        cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
-    elif Data == 'GFED4.1s' or Data == 'FireCCI5.1' or Data == 'FireCCILT11':
-        cube = cube
-    else:
-        cube = UpdateTime(cube)
+for model in models:
+    for ob in obs:
+        cube = iris.load_cube(folder+model+'*_gswp3-w5e5_obsclim_histsoc_default_burntarea-total_global_monthly_1901_2019.nc')
+        if model == 'LPJ-GUESS-SPITFIRE' or model == 'LPJ-GUESS-SIMFIRE':
+            cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
+        else:
+            cube = UpdateTime(cube)
+        cube = MonthlyToAnnual(cube)
+        if model == 'classic':
+            cube = cube*100 #Convert frac to percent
+        if model == 'ssib4':
+            cube = cube*30 #Convert %/day to %/month
+        if ob == 'GFED':
+            date1=1997
+            date2=2016
+        elif ob == 'CCI51':
+            date1=2001
+            date2=2019
+        elif ob == 'CCILT11':
+            date1=1982
+            date2=2017
+        cube = ConstrainTime(cube, date1, date2)
+        #cube = MaskRegion(cube, region=region)
+        cube = CollapseToTimeseries(cube)
+        d[(model+ob)] = MakeAnomaly(cube)
+
+
+##### Load Observations #####  
+obs = ['GFED4.1s', 'FireCCI5.1', 'FireCCILT11']
+for ob in obs:
+    cube = iris.load_cube(folder+ob+'_Burned_Percentage.nc')
     cube = MonthlyToAnnual(cube)
-    cube = ConstrainTime(cube)
-    if Data == 'classic':
-        cube = cube*100 #Convert frac to percent
-    if Data == 'ssib4':
-        cube = cube*30 #Convert %/day to %/month
+    if ob == 'GFED4.1s':
+        date1=1997
+        date2=2016
+    elif ob == 'FireCCI5.1':
+        date1=2001
+        date2=2019
+    elif ob == 'FireCCILT11':
+        date1=1982
+        date2=2018
+    cube = ConstrainTime(cube, date1, date2)
     #cube = MaskRegion(cube, region=region)
     cube = CollapseToTimeseries(cube)
-    d[(Data)] = MakeAnomaly(cube)
+    d[(ob)] = MakeAnomaly(cube)
 
 
 # Quantile-quantile / Scatter plot
 plt.figure()
-plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['jules'].data), marker='x', color='lightblue', label='JULES v GFED')
-plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['classic'].data), marker='x', color='coral', label='CLASSIC v GFED')
-plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['visit'].data), marker='x', color='sandybrown', label='VISIT v GFED')
-plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['ssib4'].data), marker='x', color='lightgreen', label='SSIB4 v GFED')
-plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['LPJ-GUESS-SPITFIRE'].data), marker='x', color='plum', label='SPITFIRE v GFED')
+plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['julesGFED'].data), marker='x', color='lightblue', label='JULES v GFED')
+plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['classicGFED'].data), marker='x', color='coral', label='CLASSIC v GFED')
+plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['visitGFED'].data), marker='x', color='sandybrown', label='VISIT v GFED')
+plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['ssib4GFED'].data), marker='x', color='lightgreen', label='SSIB4 v GFED')
+plt.plot(np.sort(d['GFED4.1s'].data), np.sort(d['LPJ-GUESS-SPITFIREGFED'].data), marker='x', color='plum', label='SPITFIRE v GFED')
 
-plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['jules'].data), color='lightblue', label='CCI51')
-plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['classic'].data), color='coral')
-plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['visit'].data), color='sandybrown')
-plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['ssib4'].data), color='lightgreen')
-plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['LPJ-GUESS-SPITFIRE'].data), color='plum')
+plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['julesCCI51'].data), color='lightblue', label='CCI51')
+plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['classicCCI51'].data), color='coral')
+plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['visitCCI51'].data), color='sandybrown')
+plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['ssib4CCI51'].data), color='lightgreen')
+plt.plot(np.sort(d['FireCCI5.1'].data), np.sort(d['LPJ-GUESS-SPITFIRECCI51'].data), color='plum')
 
-plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['jules'].data), linestyle='dashed', color='lightblue', label='CCI11')
-plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['classic'].data), linestyle='dashed', color='coral')
-plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['visit'].data), linestyle='dashed', color='sandybrown')
-plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['ssib4'].data), linestyle='dashed', color='lightgreen')
-plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['LPJ-GUESS-SPITFIRE'].data), linestyle='dashed', color='plum')
+plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['julesCCILT11'].data), linestyle='dashed', color='lightblue', label='CCI11')
+plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['classicCCILT11'].data), linestyle='dashed', color='coral')
+plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['visitCCILT11'].data), linestyle='dashed', color='sandybrown')
+plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['ssib4CCILT11'].data), linestyle='dashed', color='lightgreen')
+plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['LPJ-GUESS-SPITFIRECCILT11'].data), linestyle='dashed', color='plum')
 
 
 
@@ -116,7 +145,7 @@ plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['LPJ-GUESS-SPITFIRE'].data), 
 #axix_max=850
 #For std dev plot
 axis_min=-2.5
-axix_max=2.5
+axix_max=3.5
 #For anomaly plot
 #axis_min=-120
 #axix_max=200
