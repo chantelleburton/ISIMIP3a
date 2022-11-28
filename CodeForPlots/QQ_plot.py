@@ -78,7 +78,7 @@ for model in models:
             cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
         else:
             cube = UpdateTime(cube)
-        cube = MonthlyToAnnual(cube)
+        #cube = MonthlyToAnnual(cube)
         if model == 'classic':
             cube = cube*100 #Convert frac to percent
         if model == 'ssib4':
@@ -102,7 +102,7 @@ for model in models:
 obs = ['GFED4.1s', 'FireCCI5.1', 'FireCCILT11']
 for ob in obs:
     cube = iris.load_cube(folder+ob+'_Burned_Percentage.nc')
-    cube = MonthlyToAnnual(cube)
+    #cube = MonthlyToAnnual(cube)
     if ob == 'GFED4.1s':
         date1=1997
         date2=2016
@@ -145,7 +145,7 @@ plt.plot(np.sort(d['FireCCILT11'].data), np.sort(d['LPJ-GUESS-SPITFIRECCILT11'].
 #axix_max=850
 #For std dev plot
 axis_min=-2.5
-axix_max=3.5
+axix_max=4.0
 #For anomaly plot
 #axis_min=-120
 #axix_max=200

@@ -83,6 +83,7 @@ for Data in AllData:
         cube = cube
     else:
         cube = UpdateTime(cube)
+    cube = MonthlyToAnnual(cube)
     cube = ConstrainTime(cube)
     if Data == 'classic':
         cube = cube*100 #Convert frac to percent

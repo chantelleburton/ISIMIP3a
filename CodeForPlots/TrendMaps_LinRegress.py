@@ -37,7 +37,8 @@ def MonthlyToAnnual(cube):
 
 def MakeTrendMap(cube):
     TrendCube = cube.collapsed('time', iris.analysis.MEAN)
-    x = np.arange(2001,2017)
+    #x = np.arange(2001,2017)
+    x = np.arange(0,192)
     for i in range(len(cube.coord('longitude').points)):
         for j in range(len(cube.coord('latitude').points)):
             y = cube.data[:, j, i]
@@ -57,32 +58,36 @@ for model in models:
         cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
     else:
        cube = UpdateTime(cube)
-    cube = MonthlyToAnnual(cube)
+    #cube = MonthlyToAnnual(cube)
     cube = ConstrainTime(cube)
     if model == 'classic':
         cube = cube*100 #Convert frac to percent
     if model == 'ssib4':
         cube = cube*30 #Convert %/day to %/month
     d[(model)] = MakeTrendMap(cube)
-    iris.save(d[(model)],'/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+model+'_TrendCube.nc') 
+    iris.save(d[(model)],'/scratch/cburton/scratch/ISIMIP3a/October/'+model+'_TrendCube_Monthly.nc') 
 
 ##### Load Observations #####   
 obs = ['GFED4.1s', 'FireCCI5.1', 'FireCCILT11']
 for ob in obs:
     print (ob)
     cube = iris.load_cube(folder+ob+'_Burned_Percentage.nc')
-    cube = MonthlyToAnnual(cube)
+    #cube = MonthlyToAnnual(cube)
     cube = ConstrainTime(cube)
     d[(ob)] = MakeTrendMap(cube)
-    iris.save(d[(ob)],'/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+ob+'_TrendCube.nc')
+    iris.save(d[(ob)],'/scratch/cburton/scratch/ISIMIP3a/October/'+ob+'_TrendCube_Monthly.nc')
 ################### MAKE TREND CUBES #########################
 '''
 
 
 ################### Save time by loading in pre-saved trend cubes ###################
 ## Make Plots ###
-minimum_log_level = 0.02
-maximum_scale_level = 2.0
+#minimum_log_level = 0.02
+#maximum_scale_level = 2.0
+
+minimum_log_level = 0.0001
+maximum_scale_level = 0.01
+
 cmap='RdBu_r'
 anom_norm = mcols.SymLogNorm(
     linthresh=minimum_log_level,
@@ -90,13 +95,14 @@ anom_norm = mcols.SymLogNorm(
     vmin=-maximum_scale_level,
     vmax=maximum_scale_level)
 
-tick_levels = [-2, -0.2, 0.0, 0.2, 2]
+#tick_levels = [-2, -0.2, 0.0, 0.2, 2]
+tick_levels = [-0.02, -0.002, 0.0, 0.002, 0.02]
 
 
 AllData = ['GFED4.1s', 'FireCCI5.1', 'FireCCILT11','jules', 'classic','visit', 'ssib4', 'LPJ-GUESS-SPITFIRE']
 n=1
 for Data in AllData:
-    cube = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+Data+'_TrendCube.nc')
+    cube = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/October/'+Data+'_TrendCube_Monthly.nc')
     plt.subplot(2,4,n)
     mesh = iplt.pcolormesh(cube, cmap=cmap, norm=anom_norm)
     bar = plt.colorbar(mesh, ticks=tick_levels, orientation="horizontal")

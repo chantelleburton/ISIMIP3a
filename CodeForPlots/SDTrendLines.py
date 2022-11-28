@@ -36,8 +36,8 @@ region = 'SSA'
 dataseries = ['jules','classic','visit','ssib4', 'LPJ-GUESS-SPITFIRE','GFED4.1s','FireCCI5.1','FireCCILT11']
 d = {}
 for data in dataseries:
-    trend = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/SEPTEMBER_UPDATE/'+data+'_TrendCube.nc')
-    trend = MaskRegion(trend, region=region).data
+    trend = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/October/'+data+'_TrendCube_Monthly.nc').data
+    #trend = MaskRegion(trend, region=region).data
     #trend = MaskOcean(trend).data
     d[(data)] = [ trend.mean()-2*trend.std(), trend.mean()+2*trend.std() ]
 
@@ -55,7 +55,7 @@ models=('JULES', 'CLASSIC', 'VISIT', 'SSIB4', 'LPJG-SPITFIRE')
 x_pos = np.arange(len(models))+1
 plt.xticks(x_pos, models)
 plt.legend()
-plt.title('2001-2016 Trend, SSA')
+plt.title('2001-2016 Trend (Monthly), Global')
 plt.show()
 
 
