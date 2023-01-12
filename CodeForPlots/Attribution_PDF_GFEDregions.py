@@ -35,6 +35,8 @@ def UpdateTime(cube):
     return cube
 
 def ConstrainTime(cube):
+    dateM = iris.Constraint(time=lambda cell: 7 <= cell.point.month <= 12)
+    cube = cube.extract(dateM)
     date = iris.Constraint(time=lambda cell: 2001 <= cell.point.year <= 2016)
     cube = cube.extract(date)
     return cube
@@ -68,10 +70,10 @@ def MakeAnomaly(cube):
 
 
 #Start text document - only do this once, so comment out if running again
-#f = open('/scratch/cburton/scratch/ISIMIP3a/October/Attribution_PDF.dat','a')
-#np.savetxt(f,('Region','Mean','95Percentile'),newline=' ',fmt='  %s')
-#f.close()
-
+f = open('/scratch/cburton/scratch/ISIMIP3a/October/Attribution_PDF.dat','a')
+np.savetxt(f,('Region','Mean','95Percentile', 'JulDec'),newline=' ',fmt='  %s')
+f.close()
+'''
 ###Load GFED regions
 file_dict = OrderedDict([
     ('BONA',1),
@@ -88,8 +90,14 @@ file_dict = OrderedDict([
     ('SEAS',12),
     ('EQAS',13),
     ('AUST',14)])
+'''
+###Load GFED regions
+file_dict = OrderedDict([('AUST',14)])
+
 
 GFED = iris.load_cube('/scratch/cburton/scratch/ISIMIP3a/Data/GFED_Regions.nc', iris.Constraint(cube_func=lambda x: x.var_name == 'basis_regions'))
+GFED = ConstrainTime(GFED)
+
 
 ##### Load Model Data ##### 
 folder = '/scratch/cburton/scratch/ISIMIP3a/Data/'
@@ -100,7 +108,7 @@ for key in file_dict:
     print(key)
     for exp in exps:
         for model in models:
-            cube = iris.load_cube(folder+model+'*_gswp3-w5e5_'+exp+'*_burntarea-total_global_monthly_1901_2019.nc')
+            cube = iris.load_cube(folder+exp+'/'+model+'*_gswp3-w5e5_'+exp+'*_burntarea-total_global_monthly_1901_2019.nc')
             if model == 'LPJ-GUESS-SPITFIRE' or model == 'LPJ-GUESS-SIMFIRE':
                 cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
             else:
@@ -146,7 +154,8 @@ for key in file_dict:
     plt.legend()
     plt.xlabel('Burnt Area')
     plt.ylabel('Probability Density')
-    plt.savefig('/scratch/cburton/scratch/ISIMIP3a/October/Attribution_PDF_'+key+'.png')
+    plt.title(key+' July-Dec')
+    plt.savefig('/scratch/cburton/scratch/ISIMIP3a/October/Attribution_PDF_'+key+'_JulDec.png')
     plt.close()
 
 

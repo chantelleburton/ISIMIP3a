@@ -100,7 +100,7 @@ Exps = ['obsclim','counterclim']
 color='lightblue'
 for Exp in Exps:
     for model in models:
-        cube = iris.load_cube(folder+model+'*_gswp3-w5e5_'+Exp+'_histsoc_*_burntarea-total_global_monthly_1901_2019.nc')
+        cube = iris.load_cube(folder+Exp+'/'+model+'*_gswp3-w5e5_'+Exp+'_histsoc_*_burntarea-total_global_monthly_1901_2019.nc')
         if model == 'LPJ-GUESS-SPITFIRE' or model == 'LPJ-GUESS-SIMFIRE':
             cube.data = ma.masked_where(np.isnan(cube.data),cube.data)
         else:
@@ -116,6 +116,15 @@ for Exp in Exps:
         #plt.scatter(x,d[(model+Exp)].data, color=color)
     color='gold'
 
+##### Load Observations #####  
+obs = ['GFED4.1s', 'FireCCI5.1', 'FireCCILT11']
+for ob in obs:
+    print (ob)
+    cube = iris.load_cube(folder+ob+'_Burned_Percentage.nc')
+    cube = MonthlyToAnnual(cube)
+    cube = ConstrainTime(cube)
+    cube = CollapseToTimeseries(cube)
+    d[(ob)] = MakeAnomaly(cube)
 
 Obsclim = (d['classicobsclim'].data,d['julesobsclim'].data,d['visitobsclim'].data,d['ssib4obsclim'].data,d['LPJ-GUESS-SPITFIREobsclim'].data)
 ObsclimMax=np.amax(Obsclim, axis=0)
@@ -127,6 +136,10 @@ CFMax=np.amax(Counterclim, axis=0)
 CFMin=np.amin(Counterclim, axis=0)
 CFMean=np.mean(Counterclim, axis=0)
 
+Obs = (d['GFED4.1s'].data,d['FireCCI5.1'].data,d['FireCCILT11'].data)
+ObsMax=np.amax(Obs, axis=0)
+ObsMin=np.amin(Obs, axis=0)
+
 '''
 ##### Make scatter Plot ######
 plt.scatter(x,ObsclimMean, color='blue', label='Hist')
@@ -136,17 +149,18 @@ plt.ylabel('Z-score')
 plt.title('Annual total burned area')
 plt.show()
 '''
-'''
+
 ##### Make Range Plot ######
 x = np.arange(2001,2017)
+plt.fill_between(x, ObsMin, ObsMax, color='grey', label='Obs')
 plt.fill_between(x, ObsclimMin, ObsclimMax, color='lightblue',alpha=0.5, label='Hist range')
 plt.fill_between(x, CFMin, CFMax, color='orange', alpha=0.5, label='Counterclim range')
 plt.legend()
 plt.ylabel('Z-score')
 plt.title('Annual total burned area Z-score')
 plt.show()
-'''
 
+'''
 ##### Make whikers Plot ######
 def box_plot(data, fill_color):
     bp = plt.boxplot(data, whis=(0,100), widths=0, patch_artist=True)
@@ -178,7 +192,7 @@ plt.legend()
 plt.ylabel('Z-score')
 plt.title('Annual total burned area')
 plt.show()
-
+'''
     
 
 
