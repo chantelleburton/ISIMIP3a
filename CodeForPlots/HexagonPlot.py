@@ -1,7 +1,10 @@
 #conda activate geopackage in terminal 
+#python3
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import geoplot
+from matplotlib.colors import TwoSlopeNorm
+import pandas as pd
 
 
 #1) Download the geopackage hexagons file from here: https://gis.stackexchange.com/questions/415139/world-hexmap-based-on-ipcc-ar6-matching-country-codes-with-wgi-reference-region
@@ -19,18 +22,19 @@ import geoplot
 #4) To Make the Hexagon plot in the terminal:
 hexagons = gpd.read_file('/scratch/cburton/scratch/ISIMIP3a/Data/WeightedZones.gpkg')
 df = gpd.read_file("/scratch/cburton/scratch/ISIMIP3a/Data/RiskRatios_AR6regions.csv")
+df['field_2'] = pd.to_numeric(df['field_2'])
 hexagons['Model_results'] = df['field_2']# Add the Probability Ratio from df to the Model_results column in the hexagons gpkg
 
 
 #Centre the colourbar
 vmin, vmax, vcenter = hexagons['Model_results'].min(), hexagons['Model_results'].max(), 1.0
 norm = TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
-cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-
+cbar = plt.cm.ScalarMappable(norm=norm, cmap='RdBu_r',)
+#Make the plot
 ax = hexagons.plot()
 hexagons.plot(column='Model_results', cmap='RdBu_r', norm=norm, linewidth=0.8, edgecolor='gray', legend=False, ax=ax)
 hexagons.apply(lambda x: ax.annotate(text=x['label'], xy=x.geometry.centroid.coords[0], ha='center'), axis=1);
-plt.colorbar(cbar,orientation='horizontal', label='Probability Ratio')
+plt.colorbar(cbar,ticks=[0.8,1.0,1.5,2.0],orientation='horizontal', label='Probability Ratio')
 plt.axis('off')
 plt.show()
 
