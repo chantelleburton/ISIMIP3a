@@ -47,7 +47,8 @@ obs_GFED = df_constrain_time(select_model(obs, 'GFED5'), 2003, 2019)
 obs_DF_GFED = (obs_GFED-obs_GFED.mean(axis=0))/obs_GFED.mean(axis=0)
 #print(obs_DF_GFED)
 
-GFED5weights = (np.abs(np.log(model_DF+1.0+(1/204))).subtract(np.abs(np.log(obs_DF_GFED+1.0+(1/204)))).droplevel('Observation', axis=1))# Model vs Obs anomaly
+GFED5weights = (np.log(model_DF+1.0+(1/204))).subtract(np.log(obs_DF_GFED+1.0+(1/204))).droplevel('Observation', axis=1)# Model vs Obs anomaly
+GFED5weights = np.abs(GFED5weights)
 GFED5weights[:] = GFED5weights.mean(axis=0)
 #print(GFED5weights)
 
@@ -56,7 +57,8 @@ obs = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_obs_df.pkl')
 obs_CCI = df_constrain_time(select_model(obs, 'FireCCI5.1'), 2003, 2019)
 obs_DF_CCI = (obs_CCI-obs_CCI.mean(axis=0))/obs_CCI.mean(axis=0)
 
-FireCCIweights = (np.abs(np.log(model_DF+1.0+(1/204))).subtract(np.log(obs_DF_CCI+1.0+(1/204))).droplevel('Observation', axis=1))# Model vs Obs anomaly
+FireCCIweights = (np.log(model_DF+1.0+(1/204))).subtract(np.log(obs_DF_CCI+1.0+(1/204))).droplevel('Observation', axis=1)# Model vs Obs anomaly
+FireCCIweights = (np.abs(FireCCIweights))
 FireCCIweights[:] = FireCCIweights.mean(axis=0)
 #print(FireCCIweights)
 
@@ -73,21 +75,26 @@ counterclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_counte
 obsclim = df_constrain_time(obsclim, 2003, 2019)
 counterclim = df_constrain_time(counterclim, 2003, 2019)
 
+obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
+counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
+model_weights = model_weights.reindex(sorted(model_weights.columns), axis = 1)
+OBSweights = OBSweights.reindex(sorted(OBSweights.columns), axis = 1)
 ######################################################## Get results ###################################################
 
 ### Regional Uncertainty results
 
 #######
-def run_RR(obsclim, counterclim, add_noise = True):
+def run_RR(obsclim, counterclim, add_noise = True, i = 0):
     
-    def add_random_noise(series):
-        Noise = series.copy()
-        for regionname in series.columns.unique(level='Region'):                 
-            for modelname in series.columns.unique(level='Model'):
-                 Noise[regionname,modelname]= (np.random.normal(loc=0, scale=np.sqrt(math.pi/2), size=len(series)))
-        log_model = np.log(series+(1/len(series)))
+    def add_random_noise(model):
+        Noise = model.copy()
+        for regionname in model.columns.unique(level='Region'):                 
+            for modelname in model.columns.unique(level='Model'):
+                 Noise[regionname,modelname]= (np.random.normal(loc=0, scale=np.sqrt(math.pi/2), size=len(model)))
+        log_model = np.log(model+(1/len(model)))
         series = log_model + Noise * OBSweights
         series = series - np.mean(series, axis=0)
+        series = series / np.std(series, axis=0)
         series = series * np.std(log_model)/np.std(series)
         series = series + np.mean(log_model)
         series = np.exp(series)
@@ -160,5 +167,5 @@ Table = Table.round(decimals=2)
 Table = Table[['BurnChange', 'Burn10', 'Burn90', 'PR', 'PR10', 'PR90']]
 print(Table.astype(float).round(2))
 
-Table.to_pickle("~/GitHub/ISIMIP3a/Supplementary_Data.Uncertainty.pkl") 
+Table.to_pickle("~/GitHub/ISIMIP3a/Supplementary_Data.Uncertainty2.pkl") 
 print('Saved')
