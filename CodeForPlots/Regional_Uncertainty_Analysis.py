@@ -71,9 +71,20 @@ OBSweights = (GFED5weights + FireCCIweights)/2
 import math
 obsclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_obsclim_df.pkl')
 counterclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_counterclim_df.pkl')
-
+###Change these for PD / DHF / ALL ####
+#PD
+#print('PD')
 obsclim = df_constrain_time(obsclim, 2003, 2019)
 counterclim = df_constrain_time(counterclim, 2003, 2019)
+#DHF
+#print('DHF')
+#obsclim = df_constrain_time(counterclim, 2003, 2019)
+#counterclim = df_constrain_time(counterclim, 1901, 1917)
+#All
+#print('ALL')
+#obsclim = df_constrain_time(obsclim, 2003, 2019)
+#counterclim = df_constrain_time(counterclim, 1901, 1917)
+
 
 obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
 counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
@@ -92,7 +103,7 @@ def run_RR(obsclim, counterclim, add_noise = True, i = 0):
             for modelname in model.columns.unique(level='Model'):
                  Noise[regionname,modelname]= (np.random.normal(loc=0, scale=np.sqrt(math.pi/2), size=len(model)))
         log_model = np.log(model+(1/len(model)))
-        series = log_model + Noise * OBSweights
+        series = log_model + Noise * OBSweights.to_numpy()
         series = series - np.mean(series, axis=0)
         series = series / np.std(series, axis=0)
         series = series * np.std(log_model)/np.std(series)
@@ -158,14 +169,29 @@ Burn, PR = zip(*[run_RR(obsclim, counterclim, True) for i in range(1000)])
 PRUncertTable = pd.DataFrame(PR, columns=obsclim.columns.unique(level='Region'))
 BurnUncertTable = pd.DataFrame(Burn, columns=obsclim.columns.unique(level='Region'))
 
-Table["Burn10"] = (BurnUncertTable[:].quantile(0.1))
-Table["Burn90"] = (BurnUncertTable[:].quantile(0.9))
-Table["PR10"] = (PRUncertTable[:].quantile(0.1))
-Table["PR90"] = (PRUncertTable[:].quantile(0.9))
+CHG = ((BurnUncertTable[:].quantile(0.1) + BurnUncertTable[:].quantile(0.9))/2).round(decimals=2)
+RNG = (BurnUncertTable[:].quantile(0.9) - CHG).round(decimals=2)
+Table['BCMid'] = CHG
+Table['BCRge'] = RNG
+
+pCHG = ((PRUncertTable[:].quantile(0.1) + PRUncertTable[:].quantile(0.9))/2)
+pRNG = PRUncertTable[:].quantile(0.9) - pCHG
+Table['PRMid'] = pCHG
+Table['PRRge'] = pRNG
 Table = Table.round(decimals=2)
 
-Table = Table[['BurnChange', 'Burn10', 'Burn90', 'PR', 'PR10', 'PR90']]
-print(Table.astype(float).round(2))
+Table['Burn'] = Table['BCMid'].astype(str) + '±' +  Table['BCRge'].astype(str)
+Table['PR'] = Table['PRMid'].astype(str) + '±' + Table['PRRge'].astype(str)
 
-Table.to_pickle("~/GitHub/ISIMIP3a/Supplementary_Data.Uncertainty2.pkl") 
+table = Table[['Burn', 'PR']]
+
+table.to_pickle("/scratch/cburton/scratch/ISIMIP3a/RegionsUncert_PD.pkl") 
+
+
 print('Saved')
+
+
+
+
+
+

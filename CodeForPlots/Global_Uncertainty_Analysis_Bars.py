@@ -14,6 +14,7 @@ from scipy import stats
 from scipy.signal import periodogram
 from scipy.stats import pearsonr
 import random
+import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 
 
@@ -73,33 +74,6 @@ CCIweights[:] = CCIweights.mean(axis=0)
 OBSweights = (GFED5weights + CCIweights)/2
 
 
-################################ Get Data ###################################
-
-import math
-obsclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_obsclim_df.pkl')
-counterclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_counterclim_df.pkl')
-
-obsclim_global = obsclim_df.groupby('Model', axis=1).sum()
-counterclim_global = counterclim_df.groupby('Model', axis=1).sum()
-###Change these for PD / DHF / ALL ####
-#PD
-#print('PD')
-#obsclim = df_constrain_time(obsclim_global, 2003, 2019)
-#counterclim = df_constrain_time(counterclim_global, 2003, 2019)
-#DHF
-#print('DHF')
-#obsclim = df_constrain_time(counterclim_global, 2003, 2019)
-#counterclim = df_constrain_time(counterclim_global, 1901, 1917)
-#All
-print('ALL')
-obsclim = df_constrain_time(obsclim_global, 2003, 2019)
-counterclim = df_constrain_time(counterclim_global, 1901, 1917)
-
-
-obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
-counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
-model_weights = model_weights.reindex(sorted(model_weights.columns), axis = 1)
-OBSweights = OBSweights.reindex(sorted(OBSweights.columns), axis = 1)
 
 ################################ Add Uncertainty ###################################
 
@@ -108,7 +82,6 @@ def run_RR(add_noise = True, i=0):
     
     #(2b)
     def add_random_noise(model, OBSweights):
-
 
         Noise = model.copy()
         for modelname in model.columns.unique(level='Model'):
@@ -146,56 +119,111 @@ def run_RR(add_noise = True, i=0):
     
     #(5)
     ##Calculate the Probability Ratio
-    ALL = (np.count_nonzero(obsclim_sampled_global > (counterclim_sampled_global.mean(axis=0))))
-    NAT = (np.count_nonzero(counterclim_sampled_global > (counterclim_sampled_global.mean(axis=0))))
+    ALL = np.count_nonzero(obsclim_sampled_global > (np.percentile(counterclim_sampled_global, quantile)))
+    NAT = np.count_nonzero(counterclim_sampled_global > (np.percentile(counterclim_sampled_global, quantile)))
     PR = ALL/NAT
-    
-    burn_change = np.mean(obsclim_sampled_global)
-    
-    return PR, burn_change
+      
+    return PR
 
 #(1)
-PR_noNoise, change_noNoise  = run_RR(False)
-PRuncertEnsemble = np.array([run_RR(True) for i in range(1000)])
 
-################################ Print results ###################################
+################################ Get Data ###################################
 
-##Get the 10th and 90th percentile for the new uncertainty ensemble
-PR_uncertainty_range = np.percentile(PRuncertEnsemble[:,0], [10, 90])
-change_uncertainty_range = np.percentile(PRuncertEnsemble[:,1], [10, 90])
-
-CHG = (np.mean(PR_uncertainty_range))
-RNG = (PR_uncertainty_range[1]) - CHG
-print(f'{CHG.round(2)} ± {RNG.round(2)}')
-
-CHG = np.mean(change_uncertainty_range)*100
-RNG = (change_uncertainty_range[1]*100) - CHG
-print(f'{CHG.round(2)} ± {RNG.round(2)}')
+def scale_values_fig_2(array):
+    return np.where(array>1, array-1, (1/-array)+1)
 
 
+import math
+model_weights = model_weights.reindex(sorted(model_weights.columns), axis = 1)
+OBSweights = OBSweights.reindex(sorted(OBSweights.columns), axis = 1)
 
-'''
+obsclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_obsclim_df.pkl')
+counterclim = pd.read_pickle(f'/scratch/cburton/scratch/ISIMIP3a/Data/AR6_counterclim_df.pkl')
+obsclim_global = obsclim_df.groupby('Model', axis=1).sum()
+counterclim_global = counterclim_df.groupby('Model', axis=1).sum()
+
+quantiles = np.arange(20, 100, 10)
+
+
 #PD
-PR: 1.43
-    range:[1.39  1.47]
-    p-value:0.0
-change in burnt area:0.16
-    range:[0.16 0.17]
-    p-value:0.0
+print('PD')
+obsclim = df_constrain_time(obsclim_global, 2003, 2019)
+counterclim = df_constrain_time(counterclim_global, 2003, 2019)
+obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
+counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
+CClist = []
+CCerr = []
+for quantile in quantiles:
+    PRuncertEnsemble = np.array([run_RR(True) for i in range(1000)])
+    PR_uncertainty_range = np.percentile(PRuncertEnsemble, [10, 90])
+    MID = (np.mean(PR_uncertainty_range))
+    yerr = (PR_uncertainty_range[1]-MID)
+    CClist.append(MID)
+    CCerr.append(yerr)
+CClist = np.array(CClist)
+CClist = scale_values_fig_2(CClist)
+CCerr = np.array(CCerr)
+
 
 #DHF
-0.46 ± 0.02
--15.67 ± 0.15
+print('DHF')
+obsclim = df_constrain_time(counterclim_global, 2003, 2019)
+counterclim = df_constrain_time(counterclim_global, 1901, 1917)
+obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
+counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
+DHFlist = []
+DHFerr = []
+for quantile in quantiles:
+    PRuncertEnsemble = np.array([run_RR(True) for i in range(1000)])
+    PR_uncertainty_range = np.percentile(PRuncertEnsemble, [10, 90])
+    MID = (np.mean(PR_uncertainty_range))
+    yerr = (PR_uncertainty_range[1]-MID)
+    DHFlist.append(MID)
+    DHFerr.append(yerr)
+DHFlist = np.array(DHFlist)
+DHFlist = scale_values_fig_2(DHFlist)
+DHFerr = np.array(CCerr)
+
 
 #All
-0.82 ± 0.03
--3.54 ± 0.15
+print('ALL')
+obsclim = df_constrain_time(obsclim_global, 2003, 2019)
+counterclim = df_constrain_time(counterclim_global, 1901, 1917)
+obsclim = obsclim.reindex(sorted(obsclim.columns), axis = 1)
+counterclim = counterclim.reindex(sorted(counterclim.columns), axis = 1)
+ALLlist = []
+ALLerr = []
+for quantile in quantiles:
+    PRuncertEnsemble = np.array([run_RR(True) for i in range(1000)])
+    PR_uncertainty_range = np.percentile(PRuncertEnsemble, [10, 90])
+    MID = (np.mean(PR_uncertainty_range))
+    yerr = (PR_uncertainty_range[1]-MID)
+    ALLlist.append(MID)
+    ALLerr.append(yerr)
+ALLlist = np.array(ALLlist)
+ALLlist = scale_values_fig_2(ALLlist)
+ALLerr = np.array(ALLerr)
 
 
 
-'''
+
+################################ Make Plot ###################################
 
 
+xlabels = ('>20%', '>30%', '>40%', '>50%', '>60%', '>70%', '>80%', '>90%')
+ylabels = ('1/2', '1', '2')
+ypositions = [-1.0, 0.0, 1.0]
+plt.bar(quantiles-1.5, CClist, yerr=CCerr, width=1.5, align='center', color='#ff7f0e', label='Climate Change', alpha=0.8)
+plt.bar(quantiles, DHFlist, yerr=DHFerr, width=1.5, align='center', color='mediumpurple', label='Direct Human Forcing', alpha=0.8)
+plt.bar((quantiles+2), ALLlist, yerr=ALLerr, width=1.5, align='center', color='#000B29', label='All Forcing', alpha=0.8)
+
+plt.ylabel("PR of Burned Area")
+plt.xlabel("Counterfactual burned area percentiles")
+plt.axhline(y=0.0, color='lightgrey')
+plt.xticks(quantiles, xlabels, rotation=90)
+plt.yticks(ypositions, ylabels)
+plt.legend(frameon=False)
+plt.show()
 
 
 
